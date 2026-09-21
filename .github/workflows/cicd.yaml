@@ -42,3 +42,23 @@ jobs:
             .
           docker push $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $REGISTRY/$ECR_REPOSITORY:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            aws ecr get-login-password --region eu-west-1 | \
+              docker login --username AWS --password-stdin 945757939445.dkr.ecr.eu-west-1.amazonaws.com
+            cd ~/netflix-app
+            docker compose pull backend
+            docker compose up -d backend
+            docker image prune -f
